@@ -31,7 +31,7 @@ async def manage_chats(message: Message):
         chats = await session.execute(select(Chat).where(Chat.user_id == user.id))
         chat_list = chats.scalars().all()
         if chat_list:
-            response = "Ваши чаты:\n" + "\n".join(f"{c.id}. {c.link}" for c in chat_list) + "\nНажмите /add_chat, чтобы добавить ещё."
+            response = "Ваши чаты:\n" + "\n".join(f"{c.link}" for c in chat_list) + "\nНажмите /add_chat, чтобы добавить ещё."
         else:
             response = "У вас пока нет чатов. Нажмите /add_chat, чтобы добавить чат."
         await message.answer(response)
@@ -59,9 +59,15 @@ async def add_chat(message: Message, state: FSMContext):
         async with async_session() as session:
             user = await get_or_create_user(session, message.from_user.id, message.from_user.username)
             new_chat = Chat(user_id=user.id, link=message_text)
-            session.add(new_chat)
-            await session.commit()
-        await message.answer(text=f"Чат @{message_text.split('/')[-1]} добавлен.")
+            #no dublication
+            chats = await session.execute(select(Chat).where(Chat.link == message_text))
+            chat_list = chats.scalars().all()
+            if chat_list:
+                await message.answer("Чат уже существует.")
+            else:
+                session.add(new_chat)
+                await session.commit()
+                await message.answer(text=f"Чат @{message_text.split('/')[-1]} добавлен.")
     else:
         await message.answer("Неверный формат ссылки. Попробуйте ещё раз, нажав /add_chat")
 

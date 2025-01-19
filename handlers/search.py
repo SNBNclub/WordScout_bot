@@ -1,6 +1,6 @@
 from aiogram.filters import Command, CommandStart
 from aiogram import Router, F, types
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, LinkPreviewOptions
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
@@ -57,6 +57,8 @@ async def monitor_chats(message: types.Message):
 
                     await bot.send_message(
                         user.telegram_id,
-                        f"Найдено сообщение:\n{message.text[:100]}\nЧат: {message.chat.title}\nСсылка: https://t.me/{message.chat.username}/{message.message_id}",
+                        text=f"Найдено сообщение:\n{message.text[:100]}\n\nЧат: {message.chat.title}\nАвтор: @{message.from_user.username}\nСсылка: https://t.me/{message.chat.username}/{message.message_id}",
+                        link_preview_options=LinkPreviewOptions(is_disabled=True),
                     )
+                    return
 

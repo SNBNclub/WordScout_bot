@@ -46,7 +46,7 @@ async def manage_filters(message: Message):
         filters = await session.execute(select(Filter).where(Filter.user_id == user.id))
         filter_list = filters.scalars().all()
         if filter_list:
-            response = "Ваши фильтры:\n" + "\n".join(f"{f.id}. {f.type} - {f.value}" for f in filter_list) + "\n\nНажмите /add_filter ниже, чтобы добавить ещё."
+            response = "Ваши фильтры:\n" + "\n".join(f"{f.type} - {f.value}" for f in filter_list) + "\n\nНажмите /add_filter ниже, чтобы добавить ещё."
         else:
             response = "У вас пока нет фильтров. Нажмите /add_filter ниже, чтобы добавить."
         await message.answer(response)
@@ -80,9 +80,14 @@ async def add_filter(message: Message, state: FSMContext):
     async with async_session() as session:
         user = await get_or_create_user(session, message.from_user.id, message.from_user.username)
         new_filter = Filter(user_id=user.id, type=filter_type, value=value)
-        session.add(new_filter)
-        await session.commit()
-    await message.answer(f"Фильтер '{value}' типа {filter_type} добавлен.")
+        filters = await session.execute(select(Filter).where(Filter.user_id == user.id))
+        filter_list = filters.scalars().all()
+        if any(f.value == value for f in filter_list):
+            await message.answer(f"Фильтр '{value}' уже существует.")
+        else:
+            session.add(new_filter)
+            await session.commit()
+            await message.answer(f"Фильтер '{value}' типа {filter_type} добавлен.")
 
     await message.delete()
     data = await state.get_data()
