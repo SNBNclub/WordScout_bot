@@ -12,7 +12,6 @@ from errors.errors import *
 
 router = Router()
 
-
 @router.errors()
 async def global_error_handler(update: types.Update, exception: Exception):
     if isinstance(exception, TelegramBadRequest):

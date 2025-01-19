@@ -1,4 +1,5 @@
 from sqlalchemy import select, desc, distinct, and_
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import User, async_session
 from errors.errors import *
@@ -28,6 +29,17 @@ async def create_user(tg_id: int):
         else:
             raise Error409
 
+# Utility function for getting or creating a user
+@db_error_handler
+async def get_or_create_user(session: AsyncSession,telegram_id: int, username: str):
+    result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+    user = result.scalars().first()
+    if not user:
+        user = User(telegram_id=telegram_id, username=username)
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+    return user
 
 @db_error_handler
 async def update_user(tg_id: int, data: dict):
