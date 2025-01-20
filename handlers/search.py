@@ -37,28 +37,26 @@ async def monitor_chats(message: types.Message):
 
     async with async_session() as session:
         chats = await session.execute(select(Chat))
-        chat_list = chats.scalars().all()
+        chat_list = chats.scalars().unique().all()
 
         for chat in chat_list:
             if chat.link.endswith(message.chat.username):
                 user_filters = await session.execute(
                     select(Filter).where(Filter.user_id == chat.user_id)
                 )
-
-                filters = user_filters.scalars().all()
+                filters = user_filters.scalars().unique().all()
                 
                 logger.info(f"Filters for user {chat.user_id}: {filters}")
                 
                 if await check_message_against_filters(filters, message.text):
-                    user = await session.execute(
+                    users_list = await session.execute(
                         select(User).where(User.id == chat.user_id)
                     )
-                    user = user.scalars().first()
-
-                    await bot.send_message(
-                        user.telegram_id,
-                        text=f"Найдено сообщение:\n{message.text[:100]}\n\nЧат: {message.chat.title}\nАвтор: @{message.from_user.username}\nСсылка: https://t.me/{message.chat.username}/{message.message_id}",
-                        link_preview_options=LinkPreviewOptions(is_disabled=True),
-                    )
-                    return
+                    users = users_list.scalars().unique().all()
+                    for user in users:
+                        await bot.send_message(
+                            user.telegram_id,
+                            text=f"Найдено сообщение:\n{message.text[:239]}\n\nЧат: {message.chat.title}\nАвтор: @{message.from_user.username}\nСсылка: https://t.me/{message.chat.username}/{message.message_id}",
+                            link_preview_options=LinkPreviewOptions(is_disabled=True),
+                        )
 

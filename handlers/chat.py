@@ -60,10 +60,10 @@ async def add_chat(message: Message, state: FSMContext):
             user = await get_or_create_user(session, message.from_user.id, message.from_user.username)
             new_chat = Chat(user_id=user.id, link=message_text)
             #no dublication
-            chats = await session.execute(select(Chat).where(Chat.link == message_text).where(Chat.user_id == message.from_user.id))
+            chats = await session.execute(select(Chat).where(Filter.user_id == user.id and Chat.link == message_text))
             chat_list = chats.scalars().all()
             if chat_list:
-                await message.answer("Чат уже существует.")
+                await message.answer("Чат уже добавлен.")
             else:
                 session.add(new_chat)
                 await session.commit()

@@ -27,6 +27,7 @@ class AddFilterState(StatesGroup):
 async def check_message_against_filters(filters, message_text):
     if not message_text:
         return False
+    message_text = message_text.lower()
 
     ans = False
     for f in filters:
@@ -76,6 +77,7 @@ async def add_filter(message: Message, state: FSMContext):
     else:
         filter_type = "keyword"
         value = message.text
+    value = value.lower()
 
     async with async_session() as session:
         user = await get_or_create_user(session, message.from_user.id, message.from_user.username)
