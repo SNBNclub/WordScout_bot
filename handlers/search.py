@@ -4,6 +4,8 @@ from aiogram.types import Message, CallbackQuery, LinkPreviewOptions
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
+from pyrogram import Client, filters,enums
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -14,7 +16,7 @@ logger.setLevel(logging.INFO)
 from handlers.errors import safe_send_message
 from handlers.filter import check_message_against_filters
 from keyboards.keyboards import get_some_kb, get_some_ikb
-from instance import bot
+from instance import bot, app
 from database.req import *
 from database.models import User, Filter, Chat, LikedMessage, async_session
 
@@ -22,18 +24,18 @@ import re
 
 router = Router()
 
-@router.message()
-async def monitor_chats(message: types.Message):
+@app.on_message(filters.channel) # || filters.incoming)
+async def monitor_chats(client, message):
     """Отслеживаем сообщения в чатах и уведомляем пользователя, если сообщение подходит под фильтры."""
-    if message.chat.type not in ("group", "supergroup"):
-        logger.info("Message not in group or supergroup")
-        return
-
-    if not message.text:
-        logger.info("No text in message")
-        return False
     
-    logger.info(f"Message received in chat {message.chat.title}: {message.text}")
+    if not message.text:
+        msg = message.caption
+        logger.info(f"No text in message! message.caption = {msg}")
+        return False
+    else:
+        msg = message.text
+    
+    logger.info(f"Message received in chat {message.chat.title}: {msg}")
 
     async with async_session() as session:
         chats = await session.execute(select(Chat))
@@ -48,7 +50,7 @@ async def monitor_chats(message: types.Message):
                 
                 logger.info(f"Filters for user {chat.user_id}: {filters}")
                 
-                if await check_message_against_filters(filters, message.text):
+                if await check_message_against_filters(filters, msg):
                     users_list = await session.execute(
                         select(User).where(User.id == chat.user_id)
                     )
@@ -56,7 +58,46 @@ async def monitor_chats(message: types.Message):
                     for user in users:
                         await bot.send_message(
                             user.telegram_id,
-                            text=f"Найдено сообщение:\n{message.text[:239]}\n\nЧат: {message.chat.title}\nАвтор: @{message.from_user.username}\nСсылка: https://t.me/{message.chat.username}/{message.message_id}",
+                            text=f"Найдено сообщение:\n{msg[:239]}\n\nЧат: {message.chat.title}\nАвтор: @{message.from_user.username}\nСсылка: https://t.me/{message.chat.username}/{message.message_id}",
                             link_preview_options=LinkPreviewOptions(is_disabled=True),
                         )
+
+
+# @router.message()
+# async def monitor_chats(message: types.Message):
+#     """Отслеживаем сообщения в чатах и уведомляем пользователя, если сообщение подходит под фильтры."""
+#     if message.chat.type not in ("group", "supergroup"):
+#         logger.info("Message not in group or supergroup")
+#         return
+
+#     if not message.text:
+#         logger.info("No text in message")
+#         return False
+    
+#     logger.info(f"Message received in chat {message.chat.title}: {message.text}")
+
+#     async with async_session() as session:
+#         chats = await session.execute(select(Chat))
+#         chat_list = chats.scalars().unique().all()
+
+#         for chat in chat_list:
+#             if chat.link.endswith(message.chat.username):
+#                 user_filters = await session.execute(
+#                     select(Filter).where(Filter.user_id == chat.user_id)
+#                 )
+#                 filters = user_filters.scalars().unique().all()
+                
+#                 logger.info(f"Filters for user {chat.user_id}: {filters}")
+                
+#                 if await check_message_against_filters(filters, message.text):
+#                     users_list = await session.execute(
+#                         select(User).where(User.id == chat.user_id)
+#                     )
+#                     users = users_list.scalars().unique().all()
+#                     for user in users:
+#                         await bot.send_message(
+#                             user.telegram_id,
+#                             text=f"Найдено сообщение:\n{message.text[:239]}\n\nЧат: {message.chat.title}\nАвтор: @{message.from_user.username}\nСсылка: https://t.me/{message.chat.username}/{message.message_id}",
+#                             link_preview_options=LinkPreviewOptions(is_disabled=True),
+#                         )
 
